@@ -6,6 +6,9 @@ extends Control
 @onready var play_btn: Button = %PlayBtn
 @onready var leave_btn: Button = %LeaveBtn
 @onready var lang_btn: Button = %LangBtn
+@onready var ring: Node2D = %BrandRing
+
+var _t := 0.0
 
 
 func _ready() -> void:
@@ -15,7 +18,17 @@ func _ready() -> void:
 	_refresh()
 	Loc.language_changed.connect(func(_c): _refresh())
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.45)
+	create_tween().tween_property(self, "modulate:a", 1.0, 0.5)
+	# Soft dust
+	var dust: Node2D = (load("res://scripts/fx/dust.gd") as GDScript).new()
+	$Atmosphere.add_child(dust)
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	if ring:
+		ring.rotation = _t * 0.15
+		ring.scale = Vector2.ONE * (1.0 + 0.02 * sin(_t * 1.4))
 
 
 func _refresh() -> void:
