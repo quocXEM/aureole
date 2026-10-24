@@ -12,6 +12,9 @@ var _t := 0.0
 
 
 func _ready() -> void:
+	# Center brand ring on viewport (mobile + desktop)
+	var vs := get_viewport_rect().size
+	ring.position = Vector2(vs.x * 0.5, vs.y * 0.28)
 	play_btn.pressed.connect(_play)
 	leave_btn.pressed.connect(func() -> void: get_tree().quit())
 	lang_btn.pressed.connect(_toggle_lang)
@@ -19,8 +22,8 @@ func _ready() -> void:
 	Loc.language_changed.connect(func(_c): _refresh())
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.5)
-	# Soft dust
-	var dust: Node2D = (load("res://scripts/fx/dust.gd") as GDScript).new()
+	var dust := Node2D.new()
+	dust.set_script(preload("res://scripts/fx/dust.gd"))
 	$Atmosphere.add_child(dust)
 
 

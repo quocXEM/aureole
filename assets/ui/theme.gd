@@ -20,19 +20,19 @@ func _build() -> Theme:
 	var bold := _font("res://assets/fonts/CormorantGaramond-SemiBold.ttf")
 	if reg:
 		theme.default_font = reg
-		theme.default_font_size = 20
+		theme.default_font_size = 24
 	var ink := Color(0.12, 0.1, 0.09, 1)
 	var cream := Color(0.96, 0.93, 0.88, 0.95)
 	var line := Color(0.2, 0.16, 0.12, 0.45)
-	var n := _box(cream, line, 1, 20, 14)
-	var h := _box(Color(0.98, 0.96, 0.92, 1), Color(0.15, 0.12, 0.1, 0.7), 1, 20, 14)
+	var n := _box(cream, line, 1, 28, 18)
+	var h := _box(Color(0.98, 0.96, 0.92, 1), Color(0.15, 0.12, 0.1, 0.7), 1, 28, 18)
 	theme.set_stylebox("normal", "Button", n)
 	theme.set_stylebox("hover", "Button", h)
 	theme.set_stylebox("pressed", "Button", n)
 	theme.set_stylebox("focus", "Button", h)
 	theme.set_color("font_color", "Button", ink)
 	theme.set_color("font_hover_color", "Button", ink)
-	theme.set_font_size("font_size", "Button", 22)
+	theme.set_font_size("font_size", "Button", 26)
 	if bold:
 		theme.set_font("font", "Button", bold)
 	theme.set_color("font_color", "Label", cream)
