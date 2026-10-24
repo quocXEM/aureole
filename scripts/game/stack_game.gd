@@ -1,12 +1,12 @@
 extends Node2D
-## Aureole — international art-casual stack. Cut leftovers, Perfect juice, one more try.
+## Aureole — mobile portrait stack (1080×1920 design).
 
-const BASE_W := 300.0
-const SLAB_H := 34.0
-const PERFECT := 7.0
-const SWING := 200.0
-const DROP_SPEED := 1650.0
-const COLORS := [
+const BASE_W := 440.0
+const SLAB_H := 48.0
+const PERFECT := 10.0
+const SWING := 300.0
+const DROP_SPEED := 2200.0
+const COLORS: Array[Color] = [
 	Color(0.94, 0.84, 0.62),
 	Color(0.9, 0.74, 0.58),
 	Color(0.82, 0.72, 0.86),
@@ -30,6 +30,7 @@ const COLORS := [
 @onready var btn_menu: Button = $UI/Over/VBox/Menu
 @onready var dim: ColorRect = $UI/Dim
 
+var _cx := 540.0
 var _slabs: Array = []
 var _moving: Dictionary = {}
 var _dropping := false
@@ -40,13 +41,16 @@ var _alive := true
 var _swing_t := 0.0
 var _swing_speed := 1.45
 var _color_i := 0
-var _cam_target_y := 900.0
+var _cam_target_y := 1400.0
 var _hint_done := false
 var _guide: Line2D
 var _new_best := false
+var _base_y := 1680.0
 
 
 func _ready() -> void:
+	_cx = get_viewport_rect().size.x * 0.5
+	_apply_safe_area()
 	btn_retry.pressed.connect(_restart)
 	btn_menu.pressed.connect(func() -> void:
 		AudioBus.play_ui()
@@ -56,21 +60,38 @@ func _ready() -> void:
 	dim.visible = false
 	flash_l.modulate.a = 0.0
 	combo_l.modulate.a = 0.0
-	var atm: Node2D = (load("res://scripts/fx/atmosphere.gd") as GDScript).new()
+	var atm := Node2D.new()
+	atm.set_script(preload("res://scripts/fx/atmosphere.gd"))
 	add_child(atm)
 	move_child(atm, 0)
 	_guide = Line2D.new()
-	_guide.width = 1.0
-	_guide.default_color = Color(0.95, 0.9, 0.8, 0.08)
+	_guide.width = 1.5
+	_guide.default_color = Color(0.95, 0.9, 0.8, 0.07)
 	_guide.z_index = -1
-	_guide.add_point(Vector2(360, -4000))
-	_guide.add_point(Vector2(360, 4000))
+	_guide.add_point(Vector2(_cx, -6000))
+	_guide.add_point(Vector2(_cx, 6000))
 	world.add_child(_guide)
 	_refresh_loc()
 	Loc.language_changed.connect(func(_c): _refresh_loc())
 	_start_run()
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.4)
+
+
+func _apply_safe_area() -> void:
+	var safe := DisplayServer.get_display_safe_area()
+	var win := DisplayServer.window_get_size()
+	if win.x <= 0 or win.y <= 0:
+		return
+	var top_pad := maxi(safe.position.y, 0)
+	# Scale pad into design pixels (viewport)
+	var design_h := get_viewport_rect().size.y
+	var pad := float(top_pad) * design_h / float(win.y)
+	if pad > 8.0:
+		score_l.offset_top = 56.0 + pad * 0.35
+		score_l.offset_bottom = 160.0 + pad * 0.35
+		combo_l.offset_top = 148.0 + pad * 0.35
+		combo_l.offset_bottom = 184.0 + pad * 0.35
 
 
 func _refresh_loc() -> void:
@@ -101,10 +122,11 @@ func _start_run() -> void:
 	hint_l.modulate.a = 0.5
 	over.visible = false
 	dim.visible = false
-	_cam_target_y = 900.0
-	camera.position = Vector2(360, _cam_target_y)
+	_base_y = 1680.0
+	_cam_target_y = 1400.0
+	camera.position = Vector2(_cx, _cam_target_y)
 	camera.zoom = Vector2.ONE
-	_spawn_slab(360.0, 1100.0, BASE_W, false)
+	_spawn_slab(_cx, _base_y, BASE_W, false)
 	_spawn_moving()
 	_paint_hud()
 	_pop_score()
@@ -118,7 +140,7 @@ func _restart() -> void:
 func _paint_hud() -> void:
 	score_l.text = str(_score)
 	over_score.text = Loc.tr_key("over.score") % _score
-	var best_txt := Loc.tr_key("over.best") % SaveData.best
+	var best_txt: String = Loc.tr_key("over.best") % SaveData.best
 	if _new_best:
 		best_txt = Loc.tr_key("over.new_best") % SaveData.best
 	over_best.text = best_txt
@@ -128,13 +150,12 @@ func _spawn_slab(x: float, y: float, w: float, moving: bool) -> Dictionary:
 	var body := Node2D.new()
 	body.position = Vector2(x, y)
 	world.add_child(body)
-	var col := COLORS[_color_i % COLORS.size()]
-	# Soft contact shadow
-	var sh := Polygon2D.new()
+	var col: Color = COLORS[_color_i % COLORS.size()]
 	var hw := w * 0.5
 	var hh := SLAB_H * 0.5
+	var sh := Polygon2D.new()
 	sh.polygon = PackedVector2Array([
-		Vector2(-hw + 4, hh - 2), Vector2(hw - 4, hh - 2), Vector2(hw + 6, hh + 10), Vector2(-hw - 6, hh + 10),
+		Vector2(-hw + 6, hh - 2), Vector2(hw - 6, hh - 2), Vector2(hw + 8, hh + 14), Vector2(-hw - 8, hh + 14),
 	])
 	sh.color = Color(0, 0, 0, 0.22)
 	body.add_child(sh)
@@ -146,12 +167,12 @@ func _spawn_slab(x: float, y: float, w: float, moving: bool) -> Dictionary:
 	body.add_child(poly)
 	var hi := Polygon2D.new()
 	hi.polygon = PackedVector2Array([
-		Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, -hh + 5), Vector2(-hw, -hh + 5),
+		Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, -hh + 7), Vector2(-hw, -hh + 7),
 	])
 	hi.color = Color(1, 1, 1, 0.2)
 	body.add_child(hi)
 	var edge := Line2D.new()
-	edge.width = 1.0
+	edge.width = 1.5
 	edge.default_color = Color(1, 1, 1, 0.12)
 	edge.closed = true
 	edge.add_point(Vector2(-hw, -hh))
@@ -172,7 +193,7 @@ func _spawn_slab(x: float, y: float, w: float, moving: bool) -> Dictionary:
 func _spawn_moving() -> void:
 	var top: Dictionary = _slabs.back()
 	var y := float(top.y) - SLAB_H - 2.0
-	_spawn_slab(360.0 - SWING, y, float(top.w), true)
+	_spawn_slab(_cx - SWING, y, float(top.w), true)
 	_swing_t = randf() * TAU
 	_dropping = false
 
@@ -181,6 +202,7 @@ func _process(delta: float) -> void:
 	if not _alive:
 		return
 	camera.position.y = lerpf(camera.position.y, _cam_target_y, 1.0 - exp(-delta * 5.0))
+	camera.position.x = _cx
 	if _dropping and not _moving.is_empty():
 		_drop_y += DROP_SPEED * delta
 		var target_y := float(_slabs.back().y) - SLAB_H
@@ -193,7 +215,7 @@ func _process(delta: float) -> void:
 	if _moving.is_empty():
 		return
 	_swing_t += delta * _swing_speed
-	var x := 360.0 + sin(_swing_t) * SWING
+	var x := _cx + sin(_swing_t) * SWING
 	_moving.node.position.x = x
 	_moving.x = x
 	if not _hint_done:
@@ -231,26 +253,24 @@ func _resolve_land() -> void:
 	var left := maxf(mx - mw * 0.5, tx - tw * 0.5)
 	var right := minf(mx + mw * 0.5, tx + tw * 0.5)
 	var overlap := right - left
-	if overlap <= 3.5:
+	if overlap <= 5.0:
 		_game_over()
 		return
 
-	# Leftover falls — signature Stack juice
 	var m_left := mx - mw * 0.5
 	var m_right := mx + mw * 0.5
+	var col: Color = _moving.col
 	if m_left < left - 0.5:
-		_spawn_fall(m_left, left, float(_moving.y), _moving.col, -1.0)
+		_spawn_fall(m_left, left, float(_moving.y), col, -1.0)
 	if m_right > right + 0.5:
-		_spawn_fall(right, m_right, float(_moving.y), _moving.col, 1.0)
+		_spawn_fall(right, m_right, float(_moving.y), col, 1.0)
 
 	var new_x := (left + right) * 0.5
 	var new_w := overlap
 	var offset := absf(mx - tx)
 	var perfect := offset <= PERFECT
-
-	# Perfect restores a whisper of width (international Stack feel)
 	if perfect:
-		new_w = minf(BASE_W, new_w + 4.0)
+		new_w = minf(BASE_W, new_w + 6.0)
 		new_x = tx
 
 	_moving.x = new_x
@@ -269,17 +289,17 @@ func _resolve_land() -> void:
 		_score += int(12 + _combo * 6)
 		_flash(Loc.tr_key("hud.perfect"), Color(0.98, 0.92, 0.72, 1))
 		AudioBus.play_perfect()
-		_punch(1.05)
+		_punch(1.04)
 		_burst(Vector2(new_x, float(top.y) - SLAB_H))
 		_ring_flash(Vector2(new_x, float(top.y) - SLAB_H), new_w)
 	else:
 		_combo = 0
-		_score += 4 + int(new_w / 36.0)
+		_score += 4 + int(new_w / 50.0)
 		_flash(Loc.tr_key("hud.good"), Color(0.9, 0.86, 0.8, 0.75))
 		AudioBus.play_land()
 
 	_swing_speed = minf(2.9, _swing_speed + 0.045)
-	_cam_target_y = float(_slabs.back().y) - 440.0
+	_cam_target_y = float(_slabs.back().y) - 640.0
 	_paint_hud()
 	_pop_score()
 	_spawn_moving()
@@ -302,7 +322,7 @@ func _spawn_fall(x0: float, x1: float, y: float, col: Color, dir: float) -> void
 	body.add_child(poly)
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(body, "position", body.position + Vector2(dir * randf_range(80, 140), 420), 0.55).set_ease(Tween.EASE_IN)
+	tw.tween_property(body, "position", body.position + Vector2(dir * randf_range(100, 180), 560), 0.55).set_ease(Tween.EASE_IN)
 	tw.tween_property(body, "rotation", dir * randf_range(0.6, 1.4), 0.55)
 	tw.tween_property(body, "modulate:a", 0.0, 0.55)
 	tw.chain().tween_callback(body.queue_free)
@@ -311,14 +331,17 @@ func _spawn_fall(x0: float, x1: float, y: float, col: Color, dir: float) -> void
 func _resize_poly(d: Dictionary) -> void:
 	var hw := float(d.w) * 0.5
 	var hh := SLAB_H * 0.5
-	d.poly.polygon = PackedVector2Array([
+	var poly: Polygon2D = d.poly
+	poly.polygon = PackedVector2Array([
 		Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh),
 	])
-	d.sh.polygon = PackedVector2Array([
-		Vector2(-hw + 4, hh - 2), Vector2(hw - 4, hh - 2), Vector2(hw + 6, hh + 10), Vector2(-hw - 6, hh + 10),
+	var sh: Polygon2D = d.sh
+	sh.polygon = PackedVector2Array([
+		Vector2(-hw + 6, hh - 2), Vector2(hw - 6, hh - 2), Vector2(hw + 8, hh + 14), Vector2(-hw - 8, hh + 14),
 	])
-	d.hi.polygon = PackedVector2Array([
-		Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, -hh + 5), Vector2(-hw, -hh + 5),
+	var hi: Polygon2D = d.hi
+	hi.polygon = PackedVector2Array([
+		Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, -hh + 7), Vector2(-hw, -hh + 7),
 	])
 	var edge: Line2D = d.edge
 	edge.clear_points()
@@ -329,13 +352,14 @@ func _resize_poly(d: Dictionary) -> void:
 
 
 func _squash(n: Node2D) -> void:
-	n.scale = Vector2(1.06, 0.9)
+	n.scale = Vector2(1.05, 0.92)
 	var tw := create_tween()
 	tw.tween_property(n, "scale", Vector2.ONE, 0.14).set_ease(Tween.EASE_OUT)
 
 
 func _pop_score() -> void:
-	score_l.scale = Vector2(1.12, 1.12)
+	score_l.pivot_offset = score_l.size * 0.5
+	score_l.scale = Vector2(1.1, 1.1)
 	var tw := create_tween()
 	tw.tween_property(score_l, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_OUT)
 
@@ -343,7 +367,8 @@ func _pop_score() -> void:
 func _flash(text: String, col: Color) -> void:
 	flash_l.text = text
 	flash_l.modulate = col
-	flash_l.scale = Vector2(0.85, 0.85)
+	flash_l.pivot_offset = flash_l.size * 0.5
+	flash_l.scale = Vector2(0.88, 0.88)
 	combo_l.text = ("×%d" % _combo) if _combo > 1 else ""
 	combo_l.modulate.a = 1.0 if _combo > 1 else 0.0
 	var tw := create_tween()
@@ -362,12 +387,12 @@ func _punch(scale: float) -> void:
 func _burst(at: Vector2) -> void:
 	for i in 14:
 		var p := Polygon2D.new()
-		var r := 2.0 + randf() * 3.5
+		var r := 3.0 + randf() * 4.0
 		p.polygon = PackedVector2Array([Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)])
 		p.color = COLORS[_color_i % COLORS.size()]
-		p.position = at + Vector2(randf_range(-24, 24), randf_range(-10, 6))
+		p.position = at + Vector2(randf_range(-30, 30), randf_range(-12, 8))
 		world.add_child(p)
-		var dir := Vector2(randf_range(-1, 1), randf_range(-1.4, -0.2)).normalized() * randf_range(50, 140)
+		var dir := Vector2(randf_range(-1, 1), randf_range(-1.4, -0.2)).normalized() * randf_range(60, 160)
 		var tw := create_tween()
 		tw.tween_property(p, "position", p.position + dir, 0.4)
 		tw.parallel().tween_property(p, "modulate:a", 0.0, 0.4)
@@ -380,7 +405,7 @@ func _ring_flash(at: Vector2, w: float) -> void:
 	world.add_child(ring)
 	var r0 := w * 0.35
 	var line := Line2D.new()
-	line.width = 2.0
+	line.width = 2.5
 	line.default_color = Color(0.98, 0.92, 0.7, 0.7)
 	for i in 33:
 		var a := TAU * float(i) / 32.0
@@ -398,7 +423,7 @@ func _game_over() -> void:
 		var n: Node2D = _moving.node
 		var tw := create_tween()
 		tw.set_parallel(true)
-		tw.tween_property(n, "position:y", n.position.y + 480.0, 0.5).set_ease(Tween.EASE_IN)
+		tw.tween_property(n, "position:y", n.position.y + 640.0, 0.5).set_ease(Tween.EASE_IN)
 		tw.tween_property(n, "rotation", randf_range(-0.5, 0.5), 0.5)
 		tw.tween_property(n, "modulate:a", 0.0, 0.5)
 	AudioBus.play_fail()
