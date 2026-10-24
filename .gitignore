@@ -1,0 +1,8 @@
+.godot/
+*.translation
+export_presets.cfg
+*.pck
+*.zip
+.DS_Store
+android/
+ios/
